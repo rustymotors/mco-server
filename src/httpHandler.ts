@@ -1,5 +1,13 @@
 import { type IncomingMessage, type ServerResponse } from "http";
 import { log } from "../server";
+import { handleAuthLoginRoute } from "./AuthLogin";
+
+const routes = [
+    {
+        path: "/AuthLogin",
+        handler: handleAuthLoginRoute
+    }
+]
 
 
 export function onHTTPRequest(request: IncomingMessage, response: ServerResponse) {
@@ -11,6 +19,14 @@ export function onHTTPRequest(request: IncomingMessage, response: ServerResponse
         port: request.socket.localPort ?? 'unknown'
     });
     requestLogger.info(`${request.method} ${request.url}`);
-    response.end('ok');
+
+    const routeHandler = routes.find((route) => request.url?.startsWith(route.path))
+
+    if (routeHandler) {
+        return routeHandler.handler(request, response)
+    }
+
+    response.statusCode = 404
+    response.end('Not Found')
 
 }
