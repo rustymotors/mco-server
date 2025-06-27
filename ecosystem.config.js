@@ -1,6 +1,6 @@
 export const apps = [{
   name: "server",
-  script: 'node --no-warnings ./server.ts',
+  script: 'tsx ./server.ts',
   watch: ['./src'],
   log_file: "./logs/server.log"
 }];
