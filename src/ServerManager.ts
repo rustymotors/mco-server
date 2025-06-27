@@ -1,6 +1,9 @@
-import { type Server as httpServer, createServer as createHTTPServer, type IncomingMessage, type ServerResponse } from "http";
-import { type Server as tcpServer, createServer as createTCPServer } from "net";
+import { type Server as httpServer, createServer as createHTTPServer, } from "http";
+import { type Server as tcpServer, createServer as createTCPServer, Socket } from "net";
 import { log } from "../server";
+import { randomUUID } from "crypto";
+import { onHTTPRequest } from "./httpHandler";
+import { onTCPData } from "./tcpHanlder";
 
 export class ServerManager {
     servers: (httpServer | tcpServer)[] = [];
@@ -9,7 +12,7 @@ export class ServerManager {
         for (const port of httpPorts) {
             const server = createHTTPServer(this.onHTTPCreateServer);
             server.on("error", this.onHTTPerror);
-            server.on("request", this.onHTTPRequest);
+            server.on("request", onHTTPRequest);
             server.listen({
                 host: listeningIp,
                 port
@@ -30,16 +33,15 @@ export class ServerManager {
 
     }
 
-    onHTTPRequest(request: IncomingMessage, response: ServerResponse) {
-        const requestLogger = log.child({
-            port: request.socket.localPort ?? 'unknown'
-        });
-        requestLogger.info(`${request.method} ${request.url}`);
-        response.end('ok');
+    onTCPConnection(socket: Socket) {
+        const connectionId = randomUUID()
+        const connectionLogger = log.child({
+            connectionId
+        })
+        connectionLogger.info('New connection')
+        socket.on("data", (data: Buffer) => { return onTCPData(connectionId, data) })
 
     }
-
-    onTCPConnection() { }
 
     onHTTPerror() { }
 
