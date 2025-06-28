@@ -23,7 +23,9 @@
     "status": "pm2 status"
   },
   "dependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/node": "^24.0.4",
+    "bcrypt": "^6.0.0",
     "pino": "^9.7.0",
     "pm2": "^6.0.8",
     "tsx": "^4.20.3",
