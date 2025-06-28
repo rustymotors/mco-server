@@ -1,11 +1,16 @@
 import { type IncomingMessage, type ServerResponse } from "http";
 import { log } from "../server";
 import { handleAuthLoginRoute } from "./AuthLogin";
+import { handleShardListRoute } from "./ShardList";
 
-const routes = [
+const routes: {path: string, handler: (request: IncomingMessage, response: ServerResponse) => void}[] = [
     {
         path: "/AuthLogin",
         handler: handleAuthLoginRoute
+    },
+    {
+        path: "/ShardList/",
+        handler: handleShardListRoute
     }
 ]
 

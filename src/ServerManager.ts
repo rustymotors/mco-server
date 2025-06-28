@@ -3,7 +3,7 @@ import { type Server as tcpServer, createServer as createTCPServer, Socket } fro
 import { log } from "../server";
 import { randomUUID } from "crypto";
 import { onHTTPRequest } from "./httpHandler";
-import { onTCPData } from "./tcpHanlder";
+import { onTCPData } from "./tcpHandler";
 
 export class ServerManager {
     servers: (httpServer | tcpServer)[] = [];

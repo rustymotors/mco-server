@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from "node:http"
 import { DatabaseSync } from "node:sqlite"
 import { compare, hashSync } from "bcrypt"
 import { log } from "../server"
+import { randomUUID } from "node:crypto"
 
 const initialUsers: { customerId: number, username: string, password: string }[] = [
     { customerId: 5551212, username: "admin", password: "admin" }
@@ -21,12 +22,18 @@ export class AuthLogin {
                 const sql = `INSERT INTO users (customerId, username, passwordHash) VALUES ('${user.customerId}', '${user.username}', '${hashedPassword}')`
                 this.db.exec(sql)
             }
+
+            this.db.exec('CREATE TABLE IF NOT EXISTS auth_sessions (id INTEGER PRIMARY KEY, customerId INTEGER UNIQUE ON CONFLICT REPLACE NOT NULL, authTicket TEXT NOT NULL)')
+
+
         } catch (error: unknown) {
             log.error(`Unable to create initial users table: ${(error as Error).message}`)
         }
     }
 
-
+    addAuthSession(customerId: number): string {
+        return randomUUID().replaceAll("-", "")
+    }
 
 
     handleRequest(username: string): { customerId: number, username: string, passwordHash: string } | null {
@@ -82,8 +89,12 @@ export async function handleAuthLoginRoute(request: IncomingMessage, response: S
 
     const passwordMatches = await compare(password!, record.passwordHash)
     if (passwordMatches) {
+
+        const authTicket = authLogin.addAuthSession(record.customerId)
+
+        response.setHeader("content-type", "text/plain")
         response.statusCode = 200
-        response.end('Auth')
+        response.end(`Valid=TRUE\nTicket=${authTicket}`)
         return
     }
 
