@@ -1,20 +1,20 @@
 import { IncomingMessage, ServerResponse } from "node:http"
-import { DatabaseSync } from "node:sqlite"
+import Database from "better-sqlite3"
 import { compare, hashSync } from "bcrypt"
 import { log } from "../server"
 import { randomUUID } from "node:crypto"
+import { getDatabase } from "./database"
+import { Player } from "./models/Player"
 
 const initialUsers: { customerId: number, username: string, password: string }[] = [
     { customerId: 5551212, username: "admin", password: "admin" }
 ]
 
 export class AuthLogin {
-    protected db: DatabaseSync
+    protected db: Database.Database
 
     constructor() {
-        this.db = new DatabaseSync("authUsers.db", {
-
-        })
+        this.db = getDatabase()
         try {
             this.db.exec('CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, customerId INTEGER UNIQUE ON CONFLICT IGNORE NOT NULL, username TEXT UNIQUE ON CONFLICT IGNORE NOT NULL, passwordHash TEXT NOT NULL)')
             for (const user of initialUsers) {
@@ -37,6 +37,10 @@ export class AuthLogin {
 
 
     handleRequest(username: string): { customerId: number, username: string, passwordHash: string } | null {
+
+
+        const player = new Player(getDatabase())
+        
         const query = this.db.prepare('SELECT customerId, username, passwordHash from users where username = ? LIMIT 1')
         const record = query.get(username)
 
