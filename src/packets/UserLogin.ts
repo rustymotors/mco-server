@@ -1,5 +1,7 @@
-import { log, BinaryIO, NPSHeader } from "../common";
+import { readFile, readFileSync } from "fs";
+import { log, BinaryIO, NPSHeader, NPSContainer } from "../common";
 import { SessionKey } from "../SessionKey";
+import { privateDecrypt } from "crypto";
 
 export class UserLogin implements BinaryIO {
     readonly name = "UserLogin"
@@ -7,6 +9,7 @@ export class UserLogin implements BinaryIO {
     private _header = new NPSHeader("")
     private _contextId: string = ""
     private _sessionKey= new SessionKey("")
+    private _sessionKeyContainer = new NPSContainer("")
     private data: Buffer = Buffer.alloc(0)
     private log
     
@@ -22,6 +25,17 @@ export class UserLogin implements BinaryIO {
         return this.data.length
     }
 
+    private decryptSessionKey(encryptedSessionKetBlock: Buffer) {
+        const privateKeyPath = "./data/private_key.pem"
+        const privateKey = readFileSync(privateKeyPath)
+
+        const decrypted = privateDecrypt(privateKey, Buffer.from(Buffer.from(encryptedSessionKetBlock, "hex").toString(), "hex"))
+
+        log.info(decrypted.toString("hex"))
+
+        return decrypted
+    }
+
     read(data: Buffer): void {
         this._header = new NPSHeader(this.connectionId)
         this._header.read(data)
@@ -30,6 +44,14 @@ export class UserLogin implements BinaryIO {
         const contextIdLength = data.readUInt16BE(offset)
         offset += 2
         this._contextId = data.subarray(offset, offset + contextIdLength).toString("utf8")
+        offset += contextIdLength
+        const sessionsKeyContainer = new NPSContainer(this.connectionId)
+        sessionsKeyContainer.read(data.subarray(offset))
+
+        const encryptedSessionKey = data.subarray(offset, offset + sessionsKeyContainer.sizeOf)
+
+        this.decryptSessionKey(sessionsKeyContainer.data)
+
         this.data = data
     }
 
@@ -47,7 +69,8 @@ export class UserLogin implements BinaryIO {
             {
                 connectionId: this.connectionId,
                 header: this._header.toString(),
-                contextId: this._contextId
+                contextId: this._contextId,
+                sessionKeyContainer: this._sessionKeyContainer.toString()
             }
         )} `
     }
