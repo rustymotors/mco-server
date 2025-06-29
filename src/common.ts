@@ -32,31 +32,45 @@ export class NPSHeader implements BinaryIO {
     msgLength: number = 0
     msgVersion: 0 | 1 = 0
     readonly name: string
+    readonly connectionId: string
     private log: pino.Logger
 
     constructor(connectionId: string) {
+        this.connectionId = connectionId
         this.name = "NPSHeader"
         this.log = log.child({
             connectionId,
             function: this.name
         })
-        
+
     }
 
     get sizeOf() {
-        return this.msgVersion === 0 ? 4 : 12
+        return this.msgVersion === 1 ? 12 : 4
     }
 
     read(data: Buffer) {
         if (data.length < 4) {
-            throw new  LengthError(4, data.length)
+            throw new LengthError(4, data.length)
         }
-        
+
         this.msgId = data.readUInt16BE(0)
         this.msgLength = data.readUInt16BE(2)
 
         if (this.msgVersion === 1 && data.length < 12) {
             throw new LengthError(12, data.length)
+        }
+
+
+        if (data.length >= 12) {
+            const packetv1Suffix = data.subarray(4, 8).toString("hex")
+            const v1Suffix = Buffer.from([0x01, 0x01, 0x00, 0x00]).toString("hex")
+            if (packetv1Suffix === v1Suffix) {
+                log.info(`${packetv1Suffix} === ${v1Suffix}`)
+                this.msgVersion = 1
+            } else {
+                log.info(`${packetv1Suffix} !== ${v1Suffix}`)
+            }
         }
     }
 
@@ -72,6 +86,21 @@ export class NPSHeader implements BinaryIO {
         }
 
         return buffer
+    }
+
+    toString(encoding?: "hex"): string {
+        if (encoding === "hex") {
+            return this.write().toString("hex")
+        }
+        return `${this.name}: ${JSON.stringify(
+            {
+                connectionId: this.connectionId,
+                msgId: this.msgId,
+                messageLength: this.msgLength,
+                messageVersion: this.msgVersion,
+                sizeOf: this.sizeOf
+            }
+        )}`
     }
 
 }
