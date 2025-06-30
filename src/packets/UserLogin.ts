@@ -1,5 +1,5 @@
-import { readFile, readFileSync } from "fs";
-import { log, BinaryIO, NPSHeader, NPSContainer } from "../common";
+import { readFileSync } from "node:fs";
+import { log, BinaryIO, NPSHeader, NPSContainer, LengthError } from "../common";
 import { SessionKey } from "../SessionKey";
 import { privateDecrypt } from "crypto";
 
@@ -8,11 +8,11 @@ export class UserLogin implements BinaryIO {
     readonly connectionId
     private _header = new NPSHeader("")
     private _contextId: string = ""
-    private _sessionKey= new SessionKey("")
+    private _sessionKey = new SessionKey("")
     private _sessionKeyContainer = new NPSContainer("")
     private data: Buffer = Buffer.alloc(0)
     private log
-    
+
     constructor(connectionId: string) {
         this.connectionId = connectionId
         this.log = log.child({
@@ -29,7 +29,11 @@ export class UserLogin implements BinaryIO {
         const privateKeyPath = "./data/private_key.pem"
         const privateKey = readFileSync(privateKeyPath)
 
-        const decrypted = privateDecrypt(privateKey, Buffer.from(Buffer.from(encryptedSessionKetBlock, "hex").toString(), "hex"))
+        const decrypted = privateDecrypt(privateKey,
+            Buffer.from( // Byffer from string
+                encryptedSessionKetBlock.toString(), // Convert buffer to utf8 string
+                "hex" // String is hex values
+            ))
 
         log.info(decrypted.toString("hex"))
 
@@ -48,14 +52,37 @@ export class UserLogin implements BinaryIO {
         const sessionsKeyContainer = new NPSContainer(this.connectionId)
         sessionsKeyContainer.read(data.subarray(offset))
 
-        const encryptedSessionKey = data.subarray(offset, offset + sessionsKeyContainer.sizeOf)
+        this._sessionKeyContainer = sessionsKeyContainer
+        log.info(this._sessionKeyContainer.toString())
 
-        this.decryptSessionKey(sessionsKeyContainer.data)
+        const decrypted = this.decryptSessionKey(sessionsKeyContainer.data)
+
+        const sessionKey = new SessionKey(this.connectionId)
+        sessionKey.read(decrypted)
+
+        log.info(sessionKey.toString())
+
+        offset += sessionsKeyContainer.sizeOf
+
+        const gameIdLength = data.readInt16BE(offset)
+        offset += 2
+
+        const gameId = data.subarray(offset, offset + gameIdLength)
+        offset += 4
+        log.info(`GameId: ${gameId}`)
+
+        // Skip the last 4, which is a checksum of the exe
+        offset += 4
+
+        if (data.length > offset) {
+            throw new LengthError(offset, data.length)
+        }
+
 
         this.data = data
     }
 
-    write() :Buffer {
+    write(): Buffer {
         const buffer = Buffer.alloc(this.sizeOf)
 
         return buffer

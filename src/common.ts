@@ -168,3 +168,70 @@ export class NPSContainer implements BinaryIO {
     }
 
 }
+
+export class NPSString implements BinaryIO {
+    readonly name: string
+    readonly connectionId: string
+    private _data = Buffer.alloc(0)
+    private log: pino.Logger
+
+    constructor(connectionId: string) {
+        this.connectionId = connectionId
+        this.name = "NPSString"
+        this.log = log.child({
+            connectionId,
+            function: this.name
+        })
+
+    }
+
+    get dataLength() {
+        return this._data.length
+    }
+
+    get sizeOf() {
+        return this._data.length + 2
+    }
+
+    get data() {
+        return this._data
+    }
+
+    read(data: Buffer) {
+        if (data.length < 4) {
+            throw new LengthError(4, data.length)
+        }
+
+        const dataLength = data.readUInt16BE(0)
+
+        if (data.length <= dataLength + 2) {
+            throw new LengthError(dataLength + 2, data.length)
+        }
+
+        this._data = data.subarray(2, dataLength + 2)
+    }
+
+    write(): Buffer {
+        const buffer = Buffer.alloc(this.sizeOf)
+        buffer.writeUInt16BE(this._data.length, 2)
+
+        this._data.copy(buffer, 2)
+
+        return buffer
+    }
+
+    toString(encoding?: "hex"): string {
+        if (encoding === "hex") {
+            return this.write().toString("hex")
+        }
+        return `${this.name}: ${JSON.stringify(
+            {
+                connectionId: this.connectionId,
+                dataLength: this._data.length,
+                data: this._data.toString(),
+                sizeOf: this.sizeOf
+            }
+        )}`
+    }
+
+}

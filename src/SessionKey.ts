@@ -4,7 +4,7 @@ import { BinaryIO, LengthError, log } from "./common";
 
 export class SessionKey implements BinaryIO {
     readonly name
-    private _key = ""
+    private _key = Buffer.alloc(0)
     private log
 
     constructor(connectionId: string) {
@@ -34,9 +34,7 @@ export class SessionKey implements BinaryIO {
             throw new LengthError(keyLen + 2, data.length)
         }
 
-        const encrypredKeyStruct = data.subarray(2, keyLen + 2,)
-
-        this.log.info(`Encrypted Key: ${encrypredKeyStruct.toString("hex")}`)
+        this._key = data.subarray(2, keyLen + 2,)
     }
 
     write() {
@@ -44,4 +42,11 @@ export class SessionKey implements BinaryIO {
 
         return buffer
     }
- }
+
+    toString(encoding?: "hex") {
+        if (encoding === "hex") {
+            return this._key.toString("hex")
+        }
+        return `${this.name}: ${this._key.toString("hex")}`
+    }
+}
