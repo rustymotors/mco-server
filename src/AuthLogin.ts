@@ -32,7 +32,17 @@ export class AuthLogin {
     }
 
     addAuthSession(customerId: number): string {
-        return randomUUID().replaceAll("-", "")
+        const sessionId = randomUUID().replaceAll("-", "")
+
+        const insertStatement = this.db.prepare("INSERT INTO auth_sessions (customerId, authTicket) VALUES (?, ?)")
+        try {
+            const result = insertStatement.run(customerId, sessionId)
+            log.info(result)
+            log.info(`auth_seesion updated`)
+            return sessionId
+        } catch (e: unknown) {
+            throw new Error(`Error adding auth_sessiom: ${(e as Error).message}`)
+        }
     }
 
 
